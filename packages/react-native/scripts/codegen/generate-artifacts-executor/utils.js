@@ -441,6 +441,38 @@ function findDisabledLibrariesByPlatform(
   );
 }
 
+function writeFileSyncIfChanged(targetPath /*: string */, contents /*: string */) {
+  if (fs.existsSync(targetPath)) {
+    const oldContents = fs.readFileSync(targetPath, 'utf8');
+    if (oldContents === contents) {
+      return;
+    }
+  }
+  fs.writeFileSync(targetPath, contents);
+}
+
+function cpSyncRecursiveIfChanged(sourcePath /*: string */, targetPath /*: string */) {
+  // $FlowFixMe[prop-missing] - `fs.cpSync` is missing in Flow libdefs.
+  fs.cpSync(sourcePath, targetPath, {
+    recursive: true,
+    force: true,
+    preserveTimestamps: true,
+    filter: (src /*: string */, dest /*: string */) => {
+      if (!fs.existsSync(dest)) {
+        return true;
+      }
+      const stat = fs.statSync(dest);
+      if (!stat.isFile()) {
+        return !stat.isDirectory();
+      } else {
+        const oldContents = fs.readFileSync(dest, 'utf8');
+        const newContents = fs.readFileSync(src, 'utf8');
+        return oldContents !== newContents;
+      }
+    },
+  });
+}
+
 module.exports = {
   buildCodegenIfNeeded,
   pkgJsonIncludesGeneratedCode,
@@ -454,4 +486,6 @@ module.exports = {
   parseiOSAnnotations,
   readReactNativeConfig,
   findDisabledLibrariesByPlatform,
+  writeFileSyncIfChanged,
+  cpSyncRecursiveIfChanged,
 };
